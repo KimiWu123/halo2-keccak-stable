@@ -1,4 +1,4 @@
-# ZKEVM Keccak
+# Halo2 Keccak
 
 This repo is a refactored version of the Axiom's [halo2-lib/hashes](https://github.com/axiom-crypto/halo2-lib/tree/community-edition/hashes/zkevm) repo, adjusted so that it compiles on the stable Rust toolchain.
 The adjustments were made to avoid the dependency on the `halo2-base` crate as well as Axioms `halo2_proofs`, instead using [PSE's `halo2_proofs`](https://github.com/privacy-scaling-explorations/halo2) with tag `"v2023_04_20"`, which works with stable Rust toolchain.
