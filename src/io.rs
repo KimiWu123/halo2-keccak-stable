@@ -1,14 +1,14 @@
-use std::{fmt, io};
+use std::fmt;
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::Path;
 
-use halo2_proofs::halo2curves::bn256::{Bn256, G1Affine};
-use halo2_proofs::plonk::{ProvingKey, VerifyingKey};
+use halo2_proofs::halo2curves::bn256::{Bn256, Fr, G1Affine};
+use halo2_proofs::plonk::{Circuit, ProvingKey, VerifyingKey};
 use halo2_proofs::poly::commitment::Params;
 use halo2_proofs::poly::kzg::commitment::ParamsKZG;
 use halo2_proofs::SerdeFormat::RawBytes;
-use crate::KeccakCircuit;
+
 use crate::vanilla::KeccakConfigParams;
 
 fn with_writer<E>(path: &Path, f: impl FnOnce(&mut BufWriter<File>) -> Result<(), E>)
@@ -47,11 +47,11 @@ pub fn read_srs_path(path: &Path) -> ParamsKZG<Bn256> {
 }
 
 /// Read a proving key from the file.
-pub fn read_pk<R: Read>(reader: &mut R, params: KeccakConfigParams) -> io::Result<ProvingKey<G1Affine>> {
-    ProvingKey::read::<_, KeccakCircuit<_>>(reader, RawBytes, params)
+pub fn read_pk<C: Circuit<Fr>>(path: &Path, params: KeccakConfigParams) -> ProvingKey<G1Affine> {
+    with_reader(path, |reader| ProvingKey::read::<_, C>(reader, RawBytes, params))
 }
 
 /// Read a verification key from the file.
-pub fn read_vk<R: Read>(reader: &mut R, params: KeccakConfigParams) -> io::Result<VerifyingKey<G1Affine>> {
-    VerifyingKey::read::<_, KeccakCircuit<_>>(reader, RawBytes, params)
+pub fn read_vk<C: Circuit<Fr>>(path: &Path, params: KeccakConfigParams) -> VerifyingKey<G1Affine> {
+    with_reader(path, |reader| VerifyingKey::read::<_, C>(reader, RawBytes, params))
 }
