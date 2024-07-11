@@ -5,10 +5,18 @@ The adjustments were made to avoid the dependency on the `halo2-base` crate as w
 
 ## Usage
 
-### Run tests
-**Note**: The tests take a long time to run (`k_18_rows_per_round_9` takes over an hour on M1 Pro).
+## Running the tests
+**Note**: The tests take a long time to run (over 3 minutes on Macbook M1 Pro).
 ```bash
   cargo test -- --nocapture
+```
+
+## Generate the srs, proving key and verifying key
+
+To generate the srs, proving key and verifying key, execute:
+
+```bash
+cargo run --release --bin gen-keys
 ```
 
 
