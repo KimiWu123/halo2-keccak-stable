@@ -349,8 +349,7 @@ pub fn prove(
     inputs: HashMap<String, Vec<Fr>>,
     srs: &ParamsKZG<Bn256>,
     pk: &ProvingKey<G1Affine>,
-    k: Option<u32>,
-    rows_per_round: Option<usize>,
+    config: Option<KeccakConfigParams>,
 ) -> Result<(Vec<Fr>, Vec<u8>), String> {
     // Get inputs by name "input" from the inputs hashmap
     let raw_inputs = inputs
@@ -363,13 +362,16 @@ pub fn prove(
 
     let instance = pack_input_to_instance::<Fr>(&inputs);
 
+    let k = config.map(|c| c.k).unwrap_or(DEFAULT_K);
+    let rows_per_round = config.map(|c| c.rows_per_round).unwrap_or(DEFAULT_ROWS_PER_ROUND);
+
     // Set up the circuit
     let circuit = KeccakCircuit::new(
         KeccakConfigParams {
-            k: k.unwrap_or(DEFAULT_K),
-            rows_per_round: rows_per_round.unwrap_or(DEFAULT_ROWS_PER_ROUND),
+            k,
+            rows_per_round,
         },
-        Some(2usize.pow(k.unwrap_or(DEFAULT_K))),
+        Some(2usize.pow(k)),
         inputs,
         true, // Prover side-check to verify the circuit correctly computes the hash
         true, // Use the instance column for the input
@@ -485,11 +487,12 @@ mod test {
         );
 
         // Generate the keys
+        let config = KeccakConfigParams {
+            k: DEFAULT_K,
+            rows_per_round: DEFAULT_ROWS_PER_ROUND,
+        };
         let circuit = KeccakCircuit::new(
-            KeccakConfigParams {
-                k: DEFAULT_K,
-                rows_per_round: DEFAULT_ROWS_PER_ROUND,
-            },
+            config,
             Some(2usize.pow(DEFAULT_K)),
             vec![],
             false,
@@ -501,7 +504,7 @@ mod test {
 
         let start = std::time::Instant::now();
 
-        let (public_input, proof) = prove(inputs, &srs, &pk, Some(DEFAULT_K), Some(DEFAULT_ROWS_PER_ROUND))
+        let (public_input, proof) = prove(inputs, &srs, &pk, Some(config))
             .map_err(|_| "Failed to prove")
             .unwrap();
         dbg!(start.elapsed());
