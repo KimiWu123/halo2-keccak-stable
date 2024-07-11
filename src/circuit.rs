@@ -23,7 +23,7 @@ use crate::vanilla::{KeccakAssignedRow, KeccakCircuitConfig, KeccakConfigParams}
 
 #[derive(Clone, Debug)]
 pub struct CircuitConfig<F> {
-    pub input: Column<Instance>, // TODO - make it possible to pass arbitrary amount, not 2.
+    pub input: Column<Instance>,
     pub keccak_config: KeccakCircuitConfig<F>,
     _marker: PhantomData<F>,
 }
