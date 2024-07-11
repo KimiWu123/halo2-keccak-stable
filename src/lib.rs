@@ -6,8 +6,22 @@
 //! round of the keccak_f permutation.
 
 /// Module for Keccak circuits in vanilla halo2.
-pub mod vanilla;
-pub mod util;
+mod vanilla;
+mod util;
+
+mod circuit;
+pub mod io;
+
+use std::collections::HashMap;
+use halo2_proofs::halo2curves::bn256::{Bn256, Fr, G1Affine};
+use halo2_proofs::plonk::ProvingKey;
+use halo2_proofs::poly::kzg::commitment::ParamsKZG;
+pub use circuit::KeccakCircuit;
+pub use vanilla::KeccakConfigParams;
+use crate::circuit::unpack_input;
+
+pub const DEFAULT_ROWS_PER_ROUND: usize = 28;
+pub const DEFAULT_K: u32 = 14;
 
 #[cfg(test)]
 mod tests;
