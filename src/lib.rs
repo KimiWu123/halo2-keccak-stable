@@ -44,7 +44,7 @@ pub fn prove(
     srs_key_path: &str,
     proving_key_path: &str,
     input: HashMap<String, Vec<String>>,
-) -> Result<(Vec<u8>, Vec<u8>), Keccak256Error> {
+) -> Result<(Vec<u8>, Vec<u8>), Box<dyn std::error::Error>> {
     let circuit_inputs = deserialize_circuit_inputs(input).map_err(|e| {
         Keccak256Error(format!("Failed to deserialize circuit inputs: {}", e))
     })?;
@@ -80,7 +80,7 @@ pub fn verify(
     verifying_key_path: &str,
     proof: Vec<u8>,
     public_inputs: Vec<u8>,
-) -> Result<bool, Keccak256Error> {
+) -> Result<bool, Box<dyn std::error::Error>> {
     let deserialized_inputs = bincode::deserialize::<InputsSerialisationWrapper>(&public_inputs)
         .map_err(|e| Keccak256Error(e.to_string()))?.0;
 
