@@ -13,13 +13,14 @@ use halo2_proofs::transcript::{Blake2bRead, Blake2bWrite, Challenge255, Transcri
 use itertools::Itertools;
 use rand::thread_rng;
 use sha3::{Digest, Keccak256};
+
 use crate::{DEFAULT_K, DEFAULT_ROWS_PER_ROUND};
+use crate::util::{SKIP_FIRST_PASS, value_to_option};
 use crate::util::eth_types::Field;
-use crate::util::{value_to_option, SKIP_FIRST_PASS};
+use crate::vanilla::{KeccakAssignedRow, KeccakCircuitConfig, KeccakConfigParams};
 use crate::vanilla::keccak_packed_multi::{get_keccak_capacity, KeccakAssignedValue};
 use crate::vanilla::param::{NUM_BYTES_PER_WORD, NUM_ROUNDS, NUM_WORDS_TO_ABSORB};
 use crate::vanilla::witness::multi_keccak;
-use crate::vanilla::{KeccakAssignedRow, KeccakCircuitConfig, KeccakConfigParams};
 
 #[derive(Clone, Debug)]
 pub struct CircuitConfig<F> {
@@ -320,7 +321,7 @@ fn extract_u128<F: Field>(assigned_value: KeccakAssignedValue<F>) -> u128 {
 /// Each high-level vector's bytes are combined into a single field element up to `NUM_BYTES_PER_WORD`.
 /// Bytes arrays shorter than `NUM_BYTES_PER_WORD` are zero-padded to this length.
 /// The field element is derived from these bytes interpreted as a little-endian u64.
-pub fn pack_input_to_instance<F: PrimeField>(input: &[Vec<u8>]) -> Vec<F> {
+fn pack_input_to_instance<F: PrimeField>(input: &[Vec<u8>]) -> Vec<F> {
     input
         .iter()
         .flat_map(|input_vec| {
@@ -337,7 +338,7 @@ pub fn pack_input_to_instance<F: PrimeField>(input: &[Vec<u8>]) -> Vec<F> {
 /// Converts field elements to a vector of bytes.
 /// Currently converts each field element to a single byte.
 /// TODO - optimize by packing multiple bytes into field elements
-pub fn unpack_input<F: Field>(instance: &[F]) -> Vec<u8> {
+fn unpack_input<F: Field>(instance: &[F]) -> Vec<u8> {
     instance
         .iter()
         .map(|x| x.to_bytes_le()[0])
@@ -345,7 +346,7 @@ pub fn unpack_input<F: Field>(instance: &[F]) -> Vec<u8> {
 }
 
 
-pub fn prove(
+pub(crate) fn generate_halo2_proof(
     inputs: HashMap<String, Vec<Fr>>,
     srs: &ParamsKZG<Bn256>,
     pk: &ProvingKey<G1Affine>,
@@ -401,7 +402,7 @@ pub fn prove(
 }
 
 
-pub fn verify(
+pub(crate) fn verify_halo2_proof(
     proof: Vec<u8>,
     inputs: &Vec<Fr>,
     srs: &ParamsKZG<Bn256>,
@@ -425,17 +426,20 @@ pub fn verify(
     Ok(proof_verified)
 }
 
+
 #[cfg(test)]
 mod test {
     use std::collections::HashMap;
-    use crate::circuit::{pack_input_to_instance, prove, unpack_input, verify};
+
     use halo2_proofs::halo2curves::bn256::{Bn256, Fr};
     use halo2_proofs::plonk::{keygen_pk, keygen_vk};
     use halo2_proofs::poly::commitment::ParamsProver;
     use halo2_proofs::poly::kzg::commitment::{ParamsKZG, ParamsVerifierKZG};
     use rand_core::OsRng;
     use test_case::test_case;
+
     use crate::{DEFAULT_K, DEFAULT_ROWS_PER_ROUND, KeccakCircuit, KeccakConfigParams};
+    use crate::circuit::{generate_halo2_proof, pack_input_to_instance, unpack_input, verify_halo2_proof};
 
     #[test_case(vec ! [0u8, 151u8, 200u8, 255u8]; "4 Different Elements")]
     #[test_case(vec ! []; "Empty case")]
@@ -504,12 +508,12 @@ mod test {
 
         let start = std::time::Instant::now();
 
-        let (public_input, proof) = prove(inputs, &srs, &pk, Some(config))
+        let (public_input, proof) = generate_halo2_proof(inputs, &srs, &pk, Some(config))
             .map_err(|_| "Failed to prove")
             .unwrap();
         dbg!(start.elapsed());
         let verifier_srs: ParamsVerifierKZG<Bn256> = srs.verifier_params().clone();
-        let result = verify(proof, &public_input, &verifier_srs, &vk)
+        let result = verify_halo2_proof(proof, &public_input, &verifier_srs, &vk)
             .map_err(|_| "Failed to verify")
             .unwrap();
         assert!(result, "Proof verification failed");
