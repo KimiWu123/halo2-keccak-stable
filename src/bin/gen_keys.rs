@@ -7,7 +7,7 @@ use halo2_proofs::plonk::{keygen_pk, keygen_vk};
 use halo2_proofs::poly::commitment::ParamsProver;
 use halo2_proofs::poly::kzg::commitment::ParamsKZG;
 
-use halo2_keccak_256::{DEFAULT_K, DEFAULT_ROWS_PER_ROUND, KeccakCircuit, KeccakConfigParams};
+use halo2_keccak_256::{DEFAULT_CONFIG, KeccakCircuit, KeccakConfigParams};
 use halo2_keccak_256::io::{write_keys, write_srs};
 
 pub fn main() {
@@ -19,13 +19,13 @@ pub fn main() {
             .short('k')
             .help("Size of the circuit to allocate")
             .takes_value(true)
-            .default_value(&DEFAULT_K.to_string()))
+            .default_value(&DEFAULT_CONFIG.k.to_string()))
         .arg(Arg::with_name("rows-per-round")
             .long("rows-per-round")
             .short('r')
             .help("Amount of row compression in the circuit")
             .takes_value(true)
-            .default_value(&DEFAULT_ROWS_PER_ROUND.to_string()))
+            .default_value(&DEFAULT_CONFIG.rows_per_round.to_string()))
         .get_matches();
 
     println!("{}", format!("Generating keys for Keccak circuit with k = {} and rows-per-round = {}", matches.value_of("k").unwrap(), matches.value_of("rows-per-round").unwrap()));

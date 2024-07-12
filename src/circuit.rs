@@ -14,7 +14,7 @@ use itertools::Itertools;
 use rand::thread_rng;
 use sha3::{Digest, Keccak256};
 
-use crate::{DEFAULT_K, DEFAULT_ROWS_PER_ROUND};
+use crate::DEFAULT_CONFIG;
 use crate::util::{SKIP_FIRST_PASS, value_to_option};
 use crate::util::eth_types::Field;
 use crate::vanilla::{KeccakAssignedRow, KeccakCircuitConfig, KeccakConfigParams};
@@ -363,16 +363,11 @@ pub(crate) fn generate_halo2_proof(
 
     let instance = pack_input_to_instance::<Fr>(&inputs);
 
-    let k = config.map(|c| c.k).unwrap_or(DEFAULT_K);
-    let rows_per_round = config.map(|c| c.rows_per_round).unwrap_or(DEFAULT_ROWS_PER_ROUND);
-
+    let config = config.unwrap_or(DEFAULT_CONFIG);
     // Set up the circuit
     let circuit = KeccakCircuit::new(
-        KeccakConfigParams {
-            k,
-            rows_per_round,
-        },
-        Some(2usize.pow(k)),
+        config,
+        Some(2usize.pow(config.k)),
         inputs,
         true, // Prover side-check to verify the circuit correctly computes the hash
         true, // Use the instance column for the input
@@ -438,7 +433,7 @@ mod test {
     use rand_core::OsRng;
     use test_case::test_case;
 
-    use crate::{DEFAULT_K, DEFAULT_ROWS_PER_ROUND, KeccakCircuit, KeccakConfigParams};
+    use crate::{DEFAULT_CONFIG, KeccakCircuit};
     use crate::circuit::{generate_halo2_proof, pack_input_to_instance, unpack_input, verify_halo2_proof};
 
     #[test_case(vec ! [0u8, 151u8, 200u8, 255u8]; "4 Different Elements")]
@@ -473,12 +468,13 @@ mod test {
     }
 
     #[test]
-    fn test_external_functions() {
+    fn test_internal_prove_function() {
         let _ = env_logger::builder().is_test(true).try_init();
 
+        let config = DEFAULT_CONFIG;
         let input = [1u8, 10u8, 100u8].repeat(10);
 
-        let srs = ParamsKZG::<Bn256>::setup(DEFAULT_K, OsRng);
+        let srs = ParamsKZG::<Bn256>::setup(config.k, OsRng);
 
         let mut inputs = HashMap::new();
 
@@ -491,13 +487,9 @@ mod test {
         );
 
         // Generate the keys
-        let config = KeccakConfigParams {
-            k: DEFAULT_K,
-            rows_per_round: DEFAULT_ROWS_PER_ROUND,
-        };
         let circuit = KeccakCircuit::new(
             config,
-            Some(2usize.pow(DEFAULT_K)),
+            Some(2usize.pow(config.k)),
             vec![],
             false,
             false,
@@ -506,12 +498,47 @@ mod test {
         let vk = keygen_vk(&srs, &circuit).unwrap();
         let pk = keygen_pk(&srs, vk.clone(), &circuit).unwrap();
 
-        let start = std::time::Instant::now();
+        let (public_input, proof) = generate_halo2_proof(inputs, &srs, &pk, Some(config))
+            .map_err(|_| "Failed to prove")
+            .unwrap();
+        assert!(public_input.len() > 0, "Public input is empty");
+        assert!(proof.len() > 0, "Proof is empty");
+    }
+
+        #[test]
+    fn test_internal_verify_function() {
+        let _ = env_logger::builder().is_test(true).try_init();
+
+        let config = DEFAULT_CONFIG;
+        let input = [1u8, 10u8, 100u8].repeat(10);
+
+        let srs = ParamsKZG::<Bn256>::setup(config.k, OsRng);
+
+        let mut inputs = HashMap::new();
+
+        inputs.insert(
+            "in".to_string(),
+            input
+                .iter()
+                .map(|x| Fr::from(*x as u64))
+                .collect::<Vec<_>>(),
+        );
+
+        // Generate the keys
+        let circuit = KeccakCircuit::new(
+            config,
+            Some(2usize.pow(config.k)),
+            vec![],
+            false,
+            false,
+        );
+
+        let vk = keygen_vk(&srs, &circuit).unwrap();
+        let pk = keygen_pk(&srs, vk.clone(), &circuit).unwrap();
 
         let (public_input, proof) = generate_halo2_proof(inputs, &srs, &pk, Some(config))
             .map_err(|_| "Failed to prove")
             .unwrap();
-        dbg!(start.elapsed());
         let verifier_srs: ParamsVerifierKZG<Bn256> = srs.verifier_params().clone();
         let result = verify_halo2_proof(proof, &public_input, &verifier_srs, &vk)
             .map_err(|_| "Failed to verify")

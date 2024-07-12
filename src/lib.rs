@@ -26,8 +26,10 @@ pub mod io;
 mod tests;
 mod serialisation;
 
-pub const DEFAULT_ROWS_PER_ROUND: usize = 28;
-pub const DEFAULT_K: u32 = 14;
+pub const DEFAULT_CONFIG : KeccakConfigParams = KeccakConfigParams {
+    k: 14,
+    rows_per_round: 28,
+};
 
 #[derive(Debug, Error)]
 pub struct Keccak256Error(String);
@@ -49,10 +51,7 @@ pub fn prove(
 
     let srs = io::read_srs_path(Path::new(&srs_key_path));
 
-    let circuit_config = KeccakConfigParams {
-        k: DEFAULT_K,
-        rows_per_round: DEFAULT_ROWS_PER_ROUND,
-    };
+    let circuit_config = DEFAULT_CONFIG;
 
     let proving_key = io::read_pk::<KeccakCircuit<Fr>>(
         Path::new(&proving_key_path),
@@ -85,10 +84,7 @@ pub fn verify(
     let deserialized_inputs = bincode::deserialize::<InputsSerialisationWrapper>(&public_inputs)
         .map_err(|e| Keccak256Error(e.to_string()))?.0;
 
-    let circuit_config = KeccakConfigParams {
-        k: DEFAULT_K,
-        rows_per_round: DEFAULT_ROWS_PER_ROUND,
-    };
+    let circuit_config = DEFAULT_CONFIG;
 
     let srs = io::read_srs_path(Path::new(&srs_key_path));
 
